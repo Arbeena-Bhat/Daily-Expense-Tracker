@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException
 from models import Category
 from database import categories_collection
@@ -37,10 +36,45 @@ def get_all_categories():
     categories = list(categories_collection.find())
     return [category_serializer(cat) for cat in categories]
 
-# @router.delete("/categories/{category_id}")
-# def delete_category(category_id: str):
-#     result = categories_collection.delete_one({"_id": ObjectId(category_id)})
-#     if result.deleted_count == 0:
-#         raise HTTPException(status_code=404, detail="Category not found")
-#     return {"message": "Category deleted"}
+# UPDATE CATEGORY
+@router.put("/categories/{category_id}")
+def update_category(category_id: str, updated_data: dict):
+    if not ObjectId.is_valid(category_id):
+        raise HTTPException(status_code=400, detail="Invalid category ID")
+
+    update_fields = {}
+
+    # Update category name (capitalize)
+    if "name" in updated_data and updated_data["name"]:
+        new_name = updated_data["name"].strip().capitalize()
+
+        # Duplicate check (case-insensitive, exclude current category)
+        existing_category = categories_collection.find_one(
+            {
+                "name": {"$regex": f"^{new_name}$", "$options": "i"},
+                "_id": {"$ne": ObjectId(category_id)}
+            }
+        )
+        if existing_category:
+            raise HTTPException(status_code=400, detail=f"Category '{new_name}' already exists.")
+
+        update_fields["name"] = new_name
+
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No valid fields provided for update")
+
+    result = categories_collection.update_one({"_id": ObjectId(category_id)}, {"$set": update_fields})
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    return {"message": "Category updated successfully", "updated_fields": list(update_fields.keys())}
+
+
+@router.delete("/categories/{category_id}")
+def delete_category(category_id: str):
+    result = categories_collection.delete_one({"_id": ObjectId(category_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return {"message": "Category deleted"}
 
