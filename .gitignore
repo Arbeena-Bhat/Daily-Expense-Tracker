@@ -1,3 +1,4 @@
 _pycache_/
-venv/
-gitignore/
+.venv/
+.gitignore/
+router/_pycache_/
